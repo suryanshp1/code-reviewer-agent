@@ -7,10 +7,8 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from crewai import Agent, Crew, Process, Task
+from crewai import Agent, Crew, LLM, Process, Task
 from crewai.project import CrewBase, agent, crew, task
-from langchain_openai import ChatOpenAI
-from langchain_groq import ChatGroq
 import yaml
 
 from app.config import config
@@ -38,26 +36,32 @@ class CodeReviewCrew:
 
     def _initialize_llm(self):
         """Initialize the LLM based on configuration."""
-        if config.llm_provider == "openai":
-            return ChatOpenAI(
-                model=config.llm_model,
-                api_key=config.llm_api_key,
-                temperature=0.1,  # Low temperature for consistent reviews
-            )
-        elif config.llm_provider == "groq":
-            return ChatGroq(
-                model=config.llm_model,
-                api_key=config.llm_api_key,
-                temperature=0.1,
-            )
+        # CrewAI's LLM class uses format: 'provider/model'
+        # For Groq: 'groq/model-name'
+        # For OpenAI: 'openai/model-name' or just 'model-name'
+        if config.llm_provider == "groq":
+            model_string = f"groq/{config.llm_model}"
+        elif config.llm_provider == "openai":
+            model_string = config.llm_model  # OpenAI is default, no prefix needed
         else:
             raise ValueError(f"Unsupported LLM provider: {config.llm_provider}")
+        
+        return LLM(
+            model=model_string,
+            api_key=config.llm_api_key,
+            temperature=0.1,  # Low temperature for consistent reviews
+        )
 
     @agent
     def code_analyzer(self) -> Agent:
         """Create code analyzer agent."""
         return Agent(
-            config=self.agents_config["code_analyzer"],
+            role="Senior Software Engineer",
+            goal="Analyze code structure, identify complexity patterns, architectural issues, and logical flaws in the provided code diff",
+            backstory="You are a seasoned software engineer with 15+ years of experience across multiple programming languages and paradigms. You have a deep understanding of software architecture, design patterns, and code organization.",
+            verbose=config.debug,
+            allow_delegation=False,
+            max_iter=3,
             llm=self.llm,
         )
 
@@ -65,7 +69,12 @@ class CodeReviewCrew:
     def security_reviewer(self) -> Agent:
         """Create security reviewer agent."""
         return Agent(
-            config=self.agents_config["security_reviewer"],
+            role="Application Security Engineer",
+            goal="Identify security vulnerabilities, potential attack vectors, and unsafe coding practices in the code diff",
+            backstory="You are an OWASP expert and certified penetration tester with extensive experience in application security. You excel at identifying SQL injection, XSS, CSRF, authentication flaws, and cryptographic issues.",
+            verbose=config.debug,
+            allow_delegation=False,
+            max_iter=3,
             llm=self.llm,
         )
 
@@ -73,7 +82,12 @@ class CodeReviewCrew:
     def performance_reviewer(self) -> Agent:
         """Create performance reviewer agent."""
         return Agent(
-            config=self.agents_config["performance_reviewer"],
+            role="Performance Engineering Specialist",
+            goal="Analyze the following code diff for performance issues, inefficiencies, and scalability concerns",
+            backstory="You are a performance optimization expert specializing in profiling, benchmarking, and scalability. You understand Big O complexity, caching strategies, database optimization, and async patterns.",
+            verbose=config.debug,
+            allow_delegation=False,
+            max_iter=3,
             llm=self.llm,
         )
 
@@ -81,7 +95,12 @@ class CodeReviewCrew:
     def style_reviewer(self) -> Agent:
         """Create style reviewer agent."""
         return Agent(
-            config=self.agents_config["style_reviewer"],
+            role="Staff Engineer and Code Quality Advocate",
+            goal="Review the following code diff for code style, maintainability, readability, and adherence to best practices",
+            backstory="You are a staff engineer passionate about code quality, readability, and maintainability. You champion clean code principles, proper naming, documentation, and SOLID principles.",
+            verbose=config.debug,
+            allow_delegation=False,
+            max_iter=3,
             llm=self.llm,
         )
 
@@ -89,7 +108,12 @@ class CodeReviewCrew:
     def review_synthesizer(self) -> Agent:
         """Create review synthesizer agent."""
         return Agent(
-            config=self.agents_config["review_synthesizer"],
+            role="Principal Engineer and Code Review Lead",
+            goal="Synthesize all review findings from the specialist agents into a comprehensive, prioritized code review report",
+            backstory="You are a principal engineer who coordinates code reviews across teams. You excel at synthesizing multiple perspectives, prioritizing issues, and providing actionable feedback.",
+            verbose=config.debug,
+            allow_delegation=False,
+            max_iter=5,
             llm=self.llm,
         )
 

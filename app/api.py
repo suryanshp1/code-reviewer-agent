@@ -1,6 +1,7 @@
 """FastAPI gateway for code review service."""
 
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -12,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.config import config
-from app.crew.crew import get_crew
+# Lazy import: get_crew imported after env cleanup in lifespan
 from app.guardrails import get_guardrail_orchestrator
 from app.schemas import HealthResponse, ReviewRequest, ReviewResponse
 from app.utils import generate_request_id, sanitize_diff
@@ -37,8 +38,19 @@ async def lifespan(app: FastAPI):
     logger.info(f"LLM Model: {config.llm_model}")
     logger.info(f"Ray Serve Enabled: {config.enable_ray_serve}")
 
-    # Initialize crew (warm up)
+    # CRITICAL: Clean up unused LLM provider API keys BEFORE importing crew
+    # CrewAI reads environment variables directly, must remove wrong ones early
+    if config.llm_provider == "groq":
+        # Set dummy OPENAI_API_KEY to prevent CrewAI errors (it checks even when not used)
+        os.environ["OPENAI_API_KEY"] = "sk-dummy-key-not-used"
+        logger.info("✓ Set dummy OPENAI_API_KEY (using Groq - OpenAI not used)")
+    elif config.llm_provider == "openai":
+        os.environ.pop("GROQ_API_KEY", None)
+        logger.info("✓ Removed GROQ_API_KEY from environment (using OpenAI)")
+
+    # Initialize crew (warm up) - import here after env cleanup
     try:
+        from app.crew.crew import get_crew
         get_crew()
         logger.info("Code review crew initialized successfully")
     except Exception as e:
@@ -195,7 +207,8 @@ async def review_code(
         sanitized_diff = sanitize_diff(request.diff)
         request.diff = sanitized_diff
 
-        # Get crew and execute review
+        # Get crew and execute review (lazy import)
+        from app.crew.crew import get_crew
         crew = get_crew()
 
         # Execute with timeout
