@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - ENABLE_RAY_SERVE=false
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Ray Serve deployment (optional, use with --profile production)
+  ray-head:
+    profiles:
+      - production
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "8265:8265"  # Ray dashboard
+    env_file:
+      - .env
+    environment:
+      - ENABLE_RAY_SERVE=true
+    command: >
+      sh -c "
+      ray start --head --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265 &&
+      python -m app.serve
+      "
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  logs:

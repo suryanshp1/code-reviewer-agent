@@ -1,0 +1,69 @@
+# Exclude files not needed in Hugging Face Space
+# This reduces upload time and space size
+
+# Development files
+tests/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# CI/CD
+.github/
+.git/
+.gitignore
+
+# Documentation
+DEPLOYMENT.md
+README.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+venv/
+env/
+ENV/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+wheels/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Ray (not used in HF deployment)
+/tmp/ray/
+
+# MacOS
+.DS_Store
+
+# Scripts and tools
+scripts/
+run_e2e_tests.sh
+verify_deployment.py
+
+# Original Dockerfile (use Dockerfile.hf instead)
+Dockerfile
+
+# Large test fixtures
+tests/fixtures/*.pdf
+tests/fixtures/*.mp4

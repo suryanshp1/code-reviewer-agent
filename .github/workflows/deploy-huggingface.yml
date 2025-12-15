@@ -1,0 +1,153 @@
+name: Deploy to Hugging Face Spaces
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio httpx fastapi pydantic pydantic-settings python-dotenv pyyaml
+      
+      - name: Run basic tests
+        run: |
+          # Test imports
+          python -c "from app.config import config; print('Config loaded')"
+          python -c "from app.schemas import ReviewRequest, ReviewResponse; print('Schemas loaded')"
+          python -c "from app.api import app; print('API loaded')"
+          
+          echo "✅ Basic validation passed"
+
+  deploy:
+    name: Deploy to Hugging Face
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper git operations
+      
+      - name: Configure Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+      
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          HF_SPACE_NAME: ${{ secrets.HF_SPACE_NAME }}
+        run: |
+          # Validate secrets
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_USERNAME" ] || [ -z "$HF_SPACE_NAME" ]; then
+            echo "❌ Error: HF_TOKEN, HF_USERNAME, or HF_SPACE_NAME not set"
+            echo "Please configure these secrets in GitHub repository settings"
+            exit 1
+          fi
+          
+          # Clone the Space repository
+          git clone https://huggingface.co/spaces/$HF_USERNAME/$HF_SPACE_NAME hf-space
+          
+          # Copy files to Space (excluding what's in .spacesignore)
+          rsync -av --exclude-from=.spacesignore \
+            --exclude='.git' \
+            --exclude='hf-space' \
+            ./ hf-space/
+          
+          # Move HF-specific files to root
+          cd hf-space
+          
+          # Use HF-optimized Dockerfile if exists
+          if [ -f "Dockerfile.hf" ]; then
+            mv Dockerfile.hf Dockerfile
+            echo "✅ Using optimized Dockerfile for Hugging Face"
+          fi
+          
+          # Use HF-specific README if exists
+          if [ -f "README_HF.md" ]; then
+            mv README_HF.md README.md
+            echo "✅ Using Hugging Face README"
+          fi
+          
+          # Commit and push changes
+          git add .
+          
+          if git diff --staged --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "Deploy from GitHub commit ${GITHUB_SHA::7}"
+            git push https://HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/$HF_USERNAME/$HF_SPACE_NAME main
+            echo "✅ Successfully pushed to Hugging Face Space"
+          fi
+      
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting 60 seconds for Space to rebuild..."
+          sleep 60
+
+      - name: Verify deployment
+        env:
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          HF_SPACE_NAME: ${{ secrets.HF_SPACE_NAME }}
+        run: |
+          # Health check endpoint
+          SPACE_URL="https://${HF_USERNAME}-${HF_SPACE_NAME}.hf.space"
+          
+          echo "🔍 Checking health endpoint: $SPACE_URL/health"
+          
+          # Retry up to 5 times
+          for i in {1..5}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$SPACE_URL/health" || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Deployment successful! Space is healthy."
+              curl -s "$SPACE_URL/health" | python -m json.tool
+              exit 0
+            fi
+            
+            echo "⏳ Attempt $i/5: Got HTTP $HTTP_CODE, retrying in 30s..."
+            sleep 30
+          done
+          
+          echo "⚠️  Warning: Could not verify deployment health"
+          echo "Space might still be building. Check manually: $SPACE_URL"
+          exit 0  # Don't fail the workflow
+
+      - name: Post deployment summary
+        if: always()
+        env:
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          HF_SPACE_NAME: ${{ secrets.HF_SPACE_NAME }}
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Space URL:** https://huggingface.co/spaces/$HF_USERNAME/$HF_SPACE_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**API Endpoint:** https://${HF_USERNAME}-${HF_SPACE_NAME}.hf.space" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Test" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "curl https://${HF_USERNAME}-${HF_SPACE_NAME}.hf.space/health" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

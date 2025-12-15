@@ -1,0 +1,10 @@
+{
+  "diff": "diff --git a/app/auth.py b/app/auth.py\nnew file mode 100644\nindex 0000000..abcdef\n--- /dev/null\n+++ b/app/auth.py\n@@ -0,0 +1,6 @@\n+def login(username, password):\n+    # Vulnerable to SQL injection\n+    query = f\"SELECT * FROM users WHERE user='{username}' AND pass='{password}'\"\n+    return db.execute(query)\n",
+  "language": "python",
+  "context": {
+    "repo": "test/repo",
+    "commit_sha": "abc123",
+    "pr_number": 1,
+    "author": "testuser"
+  }
+}

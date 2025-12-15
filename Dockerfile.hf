@@ -1,0 +1,56 @@
+# Optimized Dockerfile for Hugging Face Spaces Free Tier
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files first (for layer caching)
+COPY pyproject.toml ./
+
+# Install Python dependencies (minimal for HF free tier)
+# Exclude Ray Serve and heavy dependencies to reduce image size
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    fastapi==0.124.0 \
+    uvicorn==0.38.0 \
+    pydantic==2.11.10 \
+    pydantic-settings==2.10.1 \
+    python-dotenv==1.1.1 \
+    httpx==0.27.0 \
+    python-multipart==0.0.20 \
+    pyyaml==6.0.1 \
+    tiktoken==0.9.0 \
+    openai==1.83.0 \
+    crewai==1.7.0 \
+    crewai-tools==1.7.0
+
+# Copy application code
+COPY app ./app
+
+# Create necessary directories
+RUN mkdir -p /app/logs
+
+# Set environment variables for HF optimization
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    LOG_LEVEL=INFO \
+    ENABLE_RAY_SERVE=false \
+    RATE_LIMIT_PER_MINUTE=5 \
+    REQUEST_TIMEOUT_SECONDS=90 \
+    MAX_FINDINGS_PER_REVIEW=15
+
+# Expose port 7860 (required by Hugging Face)
+EXPOSE 7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:7860/health || exit 1
+
+# Run the application
+CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]

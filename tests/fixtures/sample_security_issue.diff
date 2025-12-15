@@ -1,0 +1,21 @@
+diff --git a/app/auth.py b/app/auth.py
+new file mode 100644
+index 0000000..abcdef
+--- /dev/null
++++ b/app/auth.py
+@@ -0,0 +1,15 @@
++def authenticate_user(username, password):
++    """Authenticate user with database."""
++    # SQL Injection vulnerability - concatenating user input
++    query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
++    result = db.execute(query)
++    return result
++
++def get_user_posts(user_id):
++    """Get all posts for a user."""
++    user = db.query(User).filter(User.id == user_id).first()
++    posts = []
++    # N+1 query pattern - inefficient
++    for post_id in user.post_ids:
++        posts.append(db.query(Post).filter(Post.id == post_id).first())
++    return posts

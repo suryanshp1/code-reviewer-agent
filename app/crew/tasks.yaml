@@ -1,0 +1,202 @@
+analyze_code:
+  description: >
+    Analyze the following code diff for code quality issues, architectural
+    problems, logical flaws, and complexity concerns.
+
+    Code Diff:
+    {diff}
+
+    Programming Language: {language}
+
+    Focus on:
+    - Code structure and organization
+    - Logical correctness and potential bugs
+    - Algorithmic complexity
+    - Design patterns usage (appropriate or inappropriate)
+    - Error handling
+    - Edge cases
+
+    Return findings in JSON format as a list of objects with these fields:
+    - category: "logic" or "maintainability"
+    - severity: "low", "medium", "high", or "critical"
+    - file: file path where issue is found
+    - line: line number (if applicable)
+    - message: clear description of the issue
+    - suggestion: actionable fix or improvement
+
+  expected_output: >
+    A JSON-formatted list of code analysis findings. Each finding must include
+    category, severity, file path, line number (if applicable), a clear message
+    explaining the issue, and an actionable suggestion for improvement.
+    Focus on high-impact issues. Maximum 10 findings.
+
+  agent: code_analyzer
+  async_execution: true
+
+review_security:
+  description: >
+    Review the following code diff for security vulnerabilities and unsafe
+    coding practices.
+
+    Code Diff:
+    {diff}
+
+    Programming Language: {language}
+
+    Focus on:
+    - SQL injection, NoSQL injection
+    - Cross-site scripting (XSS)
+    - Authentication and authorization flaws
+    - Secrets and credentials in code
+    - Unsafe deserialization
+    - Path traversal vulnerabilities
+    - Cryptographic issues
+    - Input validation and sanitization
+    - CSRF vulnerabilities
+    - Insecure dependencies
+
+    Return findings in JSON format as a list of objects with these fields:
+    - category: "security"
+    - severity: "low", "medium", "high", or "critical"
+    - file: file path where issue is found
+    - line: line number (if applicable)
+    - message: clear description of the vulnerability
+    - suggestion: actionable remediation
+
+  expected_output: >
+    A JSON-formatted list of security findings. Each finding must include
+    category "security", severity level, file path, line number (if applicable),
+    a clear description of the vulnerability, and an actionable remediation
+    suggestion. Prioritize critical and high-severity issues. Maximum 10 findings.
+
+  agent: security_reviewer
+  async_execution: true
+
+review_performance:
+  description: >
+    Analyze the following code diff for performance issues, inefficiencies,
+    and scalability concerns.
+
+    Code Diff:
+    {diff}
+
+    Programming Language: {language}
+
+    Focus on:
+    - N+1 query patterns
+    - Blocking I/O in async contexts
+    - Inefficient algorithms (poor Big O complexity)
+    - Unnecessary loops or iterations
+    - Missing database indexes
+    - Inefficient data structures
+    - Memory leaks
+    - Missing caching opportunities
+    - Resource management issues
+
+    Return findings in JSON format as a list of objects with these fields:
+    - category: "performance"
+    - severity: "low", "medium", "high", or "critical"
+    - file: file path where issue is found
+    - line: line number (if applicable)
+    - message: clear description of the performance issue
+    - suggestion: actionable optimization
+
+  expected_output: >
+    A JSON-formatted list of performance findings. Each finding must include
+    category "performance", severity level, file path, line number (if applicable),
+    a clear description of the performance problem, and an actionable optimization
+    suggestion. Focus on issues with real-world impact. Maximum 10 findings.
+
+  agent: performance_reviewer
+  async_execution: true
+
+review_style:
+  description: >
+    Review the following code diff for code style, maintainability, readability,
+    and adherence to best practices.
+
+    Code Diff:
+    {diff}
+
+    Programming Language: {language}
+
+    Focus on:
+    - Naming conventions (variables, functions, classes)
+    - Code duplication
+    - Function/method length and complexity
+    - Comment quality and documentation
+    - Magic numbers and hard-coded values
+    - Proper use of language idioms
+    - Type hints and annotations (if applicable)
+    - Test coverage hints
+    - SOLID principle violations
+    - Code smells
+
+    Return findings in JSON format as a list of objects with these fields:
+    - category: "style" or "maintainability"
+    - severity: "low", "medium", "high", or "critical"
+    - file: file path where issue is found
+    - line: line number (if applicable)
+    - message: clear description of the style/maintainability issue
+    - suggestion: actionable improvement
+
+  expected_output: >
+    A JSON-formatted list of style and maintainability findings. Each finding
+    must include category ("style" or "maintainability"), severity level, file
+    path, line number (if applicable), a clear description of the issue, and an
+    actionable improvement suggestion. Focus on high-impact improvements.
+    Maximum 10 findings.
+
+  agent: style_reviewer
+  async_execution: true
+
+synthesize_review:
+  description: >
+    Synthesize all review findings from the specialist agents into a comprehensive,
+    prioritized code review report.
+
+    You have received findings from:
+    1. Code Analyzer (logic and architecture)
+    2. Security Reviewer (vulnerabilities)
+    3. Performance Reviewer (efficiency)
+    4. Style Reviewer (maintainability)
+
+    Your tasks:
+    1. Merge all findings from the specialist reviewers
+    2. Remove any duplicate findings (same issue identified by multiple agents)
+    3. Prioritize findings by severity and impact
+    4. Calculate an overall code quality score (0-10) based on:
+       - Critical issues: -3 points each
+       - High severity: -1.5 points each
+       - Medium severity: -0.5 points each
+       - Low severity: -0.1 points each
+       - Start from 10 and subtract
+    5. Create a concise summary (2-3 sentences) of the overall review
+
+    Return a JSON object with:
+    - summary: string (concise overview of the review)
+    - score: float (0-10, code quality score)
+    - findings: array of finding objects (merged, deduplicated, sorted by severity)
+
+    Each finding must have:
+    - category: "security", "performance", "style", "logic", or "maintainability"
+    - severity: "low", "medium", "high", or "critical"
+    - file: string
+    - line: integer or null
+    - message: string
+    - suggestion: string
+
+  expected_output: >
+    A complete JSON code review report with: (1) a summary string providing
+    a high-level overview, (2) a score (0-10) indicating code quality, and
+    (3) a findings array containing all unique, prioritized issues from all
+    reviewers. The findings must be sorted by severity (critical first) and
+    should be comprehensive but concise. Ensure no duplicate findings.
+
+  agent: review_synthesizer
+  context:
+    - analyze_code
+    - review_security
+    - review_performance
+    - review_style
+  async_execution: false
