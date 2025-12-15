@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 class CodeReviewCrew:
     """CrewAI-based code review orchestration."""
 
-    agents_config = "app/crew/agents.yaml"
-    tasks_config = "app/crew/tasks.yaml"
+    # Use absolute paths to avoid CrewAI path resolution issues
+    agents_config = str(Path(__file__).parent / "agents.yaml")
+    tasks_config = str(Path(__file__).parent / "tasks.yaml")
 
     def __init__(self):
         """Initialize the code review crew."""

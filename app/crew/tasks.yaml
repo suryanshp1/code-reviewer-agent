@@ -195,8 +195,8 @@ synthesize_review:
 
   agent: review_synthesizer
   context:
-    - analyze_code
-    - review_security
-    - review_performance
-    - review_style
+    - analyze_code_task
+    - review_security_task
+    - review_performance_task
+    - review_style_task
   async_execution: false
