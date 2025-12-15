@@ -31,53 +31,45 @@ Automatically review pull requests using a multi-agent AI system powered by Crew
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────┐
-│   GitHub PR/Push    │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  GitHub Actions     │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   FastAPI Gateway   │  ← Authentication, Rate Limiting
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Ray Serve         │  ← Horizontal Scaling (Optional)
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────────────────────────┐
-│         CrewAI Multi-Agent System        │
-│  ┌─────────────────────────────────┐   │
-│  │  Parallel Phase                  │   │
-│  │  • Code Analyzer                 │   │
-│  │  • Security Reviewer             │   │
-│  │  • Performance Reviewer          │   │
-│  │  • Style & Maintainability       │   │
-│  └─────────────┬───────────────────┘   │
-│                │                        │
-│                ▼                        │
-│  ┌─────────────────────────────────┐   │
-│  │  Sequential Phase               │   │
-│  │  • Review Synthesizer           │   │
-│  └─────────────────────────────────┘   │
-└──────────┬──────────────────────────────┘
-           │
-           ▼
-┌─────────────────────┐
-│    Guardrails       │  ← Validation, Deduplication
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Structured Review  │  ← JSON + Markdown
-└─────────────────────┘
+```mermaid
+flowchart TD
+    A[GitHub PR/Push] --> B[GitHub Actions]
+    B --> C[FastAPI Gateway]
+    C -->|Authentication<br/>Rate Limiting| D{Ray Serve?}
+    D -->|Optional<br/>Scaling| E[CrewAI Multi-Agent System]
+    D -->|Direct| E
+    
+    E --> F[Parallel Phase]
+    F --> G1[Code Analyzer Agent]
+    F --> G2[Security Reviewer Agent]
+    F --> G3[Performance Reviewer Agent]
+    F --> G4[Style & Maintainability Agent]
+    
+    G1 --> H[Sequential Phase]
+    G2 --> H
+    G3 --> H
+    G4 --> H
+    
+    H --> I[Review Synthesizer Agent]
+    I --> J[Guardrails Layer]
+    J -->|Validation<br/>Deduplication| K[Structured Review Output]
+    K -->|JSON + Markdown| L[Final Report]
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C fill:#fff4e1
+    style D fill:#f0f0f0
+    style E fill:#e8f5e9
+    style F fill:#e8f5e9
+    style G1 fill:#bbdefb
+    style G2 fill:#ffccbc
+    style G3 fill:#c5e1a5
+    style G4 fill:#d1c4e9
+    style H fill:#e8f5e9
+    style I fill:#fff9c4
+    style J fill:#ffccbc
+    style K fill:#c8e6c9
+    style L fill:#b2dfdb
 ```
 
 ### Agent Responsibilities

@@ -11,13 +11,15 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv for faster package installation
+RUN pip install --no-cache-dir uv
+
 # Copy project files
 COPY pyproject.toml ./
 COPY app ./app
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -e .
+# Install Python dependencies using uv (much faster than pip)
+RUN uv pip install --system --no-cache -e .
 
 # Production stage
 FROM python:3.11-slim
