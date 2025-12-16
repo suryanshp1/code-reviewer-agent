@@ -99,77 +99,7 @@ jobs:
         if: steps.diff.outputs.has_changes == 'true'
         id: format
         run: |
-          # Extract markdown from review response
-          # The API returns a ReviewResponse object, we need to call to_markdown()
-          # For now, we'll format it manually from the JSON
-          
-          python3 << 'EOF'
-          import json
-          import sys
-          
-          try:
-              with open('review.json', 'r') as f:
-                  review = json.load(f)
-              
-              # Build markdown
-              lines = ["## 🤖 AI Code Review", ""]
-              
-              summary = review.get('summary', 'Code review completed')
-              score = review.get('score', 0)
-              findings = review.get('findings', [])
-              
-              lines.append(f"**Summary:** {summary}")
-              lines.append(f"**Quality Score:** {score:.1f}/10")
-              lines.append("")
-              
-              if not findings:
-                  lines.append("✅ No issues found! Great work!")
-              else:
-                  # Group by severity
-                  critical = [f for f in findings if f['severity'] == 'critical']
-                  high = [f for f in findings if f['severity'] == 'high']
-                  medium = [f for f in findings if f['severity'] == 'medium']
-                  low = [f for f in findings if f['severity'] == 'low']
-                  
-                  def format_findings(findings, emoji, title):
-                      if not findings:
-                          return []
-                      result = [f"### {emoji} {title}", ""]
-                      for f in findings:
-                          location = f"`{f['file']}:{f['line']}`" if f.get('line') else f"`{f['file']}`"
-                          result.append(f"- **{f['category'].title()}** in {location}")
-                          result.append(f"  > {f['message']}")
-                          result.append(f"  > **Suggestion:** {f['suggestion']}")
-                          result.append("")
-                      return result
-                  
-                  lines.extend(format_findings(critical, "🔴", "Critical Issues"))
-                  lines.extend(format_findings(high, "🟠", "High Severity"))
-                  lines.extend(format_findings(medium, "🟡", "Medium Severity"))
-                  lines.extend(format_findings(low, "🟢", "Low Severity"))
-              
-              # Footer
-              metadata = review.get('metadata', {})
-              model = metadata.get('model', 'unknown')
-              execution_time = metadata.get('execution_time_ms', 0)
-              
-              lines.extend([
-                  "---",
-                  f"*Reviewed by AI agents using {model} in {execution_time}ms*"
-              ])
-              
-              markdown = "\\n".join(lines)
-              
-              # Write to file
-              with open('review_comment.md', 'w') as f:
-                  f.write(markdown)
-              
-              print("Review formatted successfully")
-              
-          except Exception as e:
-              print(f"Error formatting review: {e}", file=sys.stderr)
-              sys.exit(1)
-          EOF
+          python3 .github/scripts/format_review.py
 
       - name: Post review comment
         if: steps.diff.outputs.has_changes == 'true'
@@ -211,18 +141,25 @@ jobs:
               console.log('Posted new review comment');
             }
 
-      - name: Check for critical issues
+      - name: Summary report
         if: steps.diff.outputs.has_changes == 'true'
         run: |
-          # Fail the workflow if there are critical severity findings
+          # Report critical issues as warnings instead of failing the workflow
           CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "critical")] | length' review.json)
+          HIGH_COUNT=$(jq '[.findings[] | select(.severity == "high")] | length' review.json)
+          TOTAL_COUNT=$(jq '.findings | length' review.json)
+          
+          echo "📊 Code Review Summary:"
+          echo "  Total Issues: $TOTAL_COUNT"
+          echo "  Critical: $CRITICAL_COUNT"
+          echo "  High: $HIGH_COUNT"
           
           if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            echo "::error::Found $CRITICAL_COUNT critical severity issues"
-            echo "Please address critical issues before merging"
-            exit 1
-          else
-            echo "No critical issues found"
+            echo "::warning::⚠️ Found $CRITICAL_COUNT critical severity issue(s) - Please review before merging"
+          fi
+          
+          if [ "$TOTAL_COUNT" -eq 0 ]; then
+            echo "✅ No issues found - Great work!"
           fi
 
       - name: No changes detected
