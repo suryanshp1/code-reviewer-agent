@@ -33,7 +33,10 @@ class AppConfig(BaseSettings):
     groq_model: str = Field("llama-3.3-70b-versatile", description="Groq model to use")
 
     # API Authentication
-    review_api_key: str = Field(..., description="API key for authentication")
+    review_api_key: str = Field(
+        "", 
+        description="API key for authentication. Leave empty to disable authentication (not recommended for production)"
+    )
 
     # Rate Limiting
     rate_limit_per_minute: int = Field(10, ge=1, le=100, description="Max requests per minute")

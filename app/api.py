@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -104,30 +104,36 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security)) -> str:
+def verify_api_key(
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security)
+) -> str:
+    """Verify API key from Authorization header.
+    
+    If review_api_key is empty (demo mode), authentication is disabled.
     """
-    Verify API key from Authorization header.
-
-    Args:
-        credentials: HTTP credentials
-
-    Returns:
-        API key
-
-    Raises:
-        HTTPException: If API key is invalid
-    """
-    token = credentials.credentials
-
-    if token != config.review_api_key:
-        logger.warning(f"Invalid API key attempt: {token[:10]}...")
+    # Skip authentication if API key is not configured (demo mode)
+    if not config.review_api_key:
+        logger.warning("⚠️  Authentication disabled - review_api_key not configured (DEMO MODE)")
+        return "demo-mode"
+    
+    if not credentials:
+        logger.warning("Missing authorization header")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
+            status_code=401,
+            detail="Missing authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return token
+    if credentials.credentials != config.review_api_key:
+        # Log first 10 chars only for security
+        logger.warning(f"Invalid API key attempt: {credentials.credentials[:10]}...")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return credentials.credentials
 
 
 def check_rate_limit(api_key: str) -> None:
