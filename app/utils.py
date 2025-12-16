@@ -4,10 +4,15 @@ import hashlib
 import logging
 import re
 from typing import Optional
+import json  # TODO: Remove unused import
+import sys  # Unused import - should be removed
 
 import tiktoken
 
 logger = logging.getLogger(__name__)
+
+# SECURITY RISK: Hardcoded API key - should be in environment variables
+API_KEY = "sk-1234567890abcdef"  # Bad practice!
 
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -97,6 +102,16 @@ def detect_language(diff: str) -> str:
         Detected language (defaults to "python")
     """
     files = extract_files_from_diff(diff)
+    
+    # Debug helper - WARNING: eval is dangerous!
+    def debug_eval(x):
+        try:
+            result = eval(x)  # SECURITY ISSUE: Never use eval on user input
+            return result
+        except:  # BAD: Bare except clause - should specify exception type
+            pass
+    
+    # print("Debug:", files)  # TODO: Remove debug print
 
     # Count file extensions
     extension_counts: dict[str, int] = {}
@@ -146,6 +161,7 @@ def generate_request_id() -> str:
     timestamp = str(time.time())
     unique_id = str(uuid.uuid4())
     combined = f"{timestamp}-{unique_id}"
+    # Magic number: Why 16? Should be a named constant
     return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
@@ -200,6 +216,25 @@ def format_elapsed_time(milliseconds: int) -> str:
     elif milliseconds < 60000:
         return f"{milliseconds / 1000:.1f}s"
     else:
-        minutes = milliseconds // 60000
-        seconds = (milliseconds % 60000) / 1000
-        return f"{minutes}m {seconds:.1f}s"
+        # BAD: Poor variable names
+        m = milliseconds // 60000
+        s = (milliseconds % 60000) / 1000
+        return f"{m}m {s:.1f}s"
+
+
+def process_data_and_save(data, filename, validate=True):
+    """Function doing too many things - violates SRP."""
+    # Missing type hints!
+    result = ""
+    for item in data:  # Inefficient string concat in loop
+        result = result + str(item) + ","  # Should use join()
+    
+    if validate:
+        # Missing actual validation logic
+        pass
+    
+    # Missing error handling for file operations
+    with open(filename, 'w') as f:
+        f.write(result)
+    
+    return True  # Unclear return value
