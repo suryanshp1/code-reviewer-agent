@@ -39,11 +39,18 @@ flowchart TD
     D -->|Optional<br/>Scaling| E[CrewAI Multi-Agent System]
     D -->|Direct| E
     
+    E --> E1[CrewAI LLM Class]
+    E1 -->|Model: groq/llama-3.3-70b| L1[litellm Router]
+    L1 --> L2{Provider}
+    L2 -->|Groq| G[Groq API]
+    L2 -->|OpenAI| O[OpenAI API]
+    
     E --> F[Parallel Phase]
-    F --> G1[Code Analyzer Agent]
-    F --> G2[Security Reviewer Agent]
-    F --> G3[Performance Reviewer Agent]
-    F --> G4[Style & Maintainability Agent]
+    F --> AG[YAML Agent Configs]
+    AG --> G1[Code Analyzer Agent]
+    AG --> G2[Security Reviewer Agent]
+    AG --> G3[Performance Reviewer Agent]
+    AG --> G4[Style & Maintainability Agent]
     
     G1 --> H[Sequential Phase]
     G2 --> H
@@ -53,14 +60,20 @@ flowchart TD
     H --> I[Review Synthesizer Agent]
     I --> J[Guardrails Layer]
     J -->|Validation<br/>Deduplication| K[Structured Review Output]
-    K -->|JSON + Markdown| L[Final Report]
+    K -->|JSON + Markdown| M[Final Report]
     
     style A fill:#e1f5ff
     style B fill:#e1f5ff
     style C fill:#fff4e1
     style D fill:#f0f0f0
     style E fill:#e8f5e9
+    style E1 fill:#b3e5fc
+    style L1 fill:#b3e5fc
+    style L2 fill:#b3e5fc
+    style G fill:#81c784
+    style O fill:#81c784
     style F fill:#e8f5e9
+    style AG fill:#fff9c4
     style G1 fill:#bbdefb
     style G2 fill:#ffccbc
     style G3 fill:#c5e1a5
@@ -69,7 +82,7 @@ flowchart TD
     style I fill:#fff9c4
     style J fill:#ffccbc
     style K fill:#c8e6c9
-    style L fill:#b2dfdb
+    style M fill:#b2dfdb
 ```
 
 ### Agent Responsibilities
@@ -81,6 +94,14 @@ flowchart TD
 | **Performance Reviewer** | Performance Engineer | N+1 queries, algorithmic complexity, resource usage |
 | **Style Reviewer** | Staff Engineer | Naming, maintainability, code smells, SOLID principles |
 | **Review Synthesizer** | Tech Lead | Merge findings, prioritize, create final report |
+
+### Technical Stack
+
+- **LLM Integration**: CrewAI's native `LLM` class with `litellm` backend
+- **Agent Configuration**: YAML-based (`agents.yaml`, `tasks.yaml`)
+- **API Framework**: FastAPI with async support
+- **Scaling**: Optional Ray Serve deployment
+- **Supported Providers**: OpenAI, Groq (via litellm router)
 
 ## 🚀 Quick Start
 
@@ -177,6 +198,31 @@ Expected response:
 | Groq | llama-3.3-70b-versatile | Free* | Ultra Fast | Good | High volume |
 
 *Groq has usage limits on free tier
+
+### LLM Configuration
+
+The application uses **CrewAI's native `LLM` class** with `litellm` as the routing backend. This enables:
+
+- ✅ **Multi-provider support**: Seamlessly switch between OpenAI and Groq
+- ✅ **YAML configuration**: Agent definitions loaded from `agents.yaml`
+- ✅ **Unified interface**: Same API regardless of provider
+- ✅ **Model format**: `groq/model-name` or `openai/model-name`
+
+**Example `.env` for Groq:**
+```bash
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+**Example `.env` for OpenAI:**
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your_openai_key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+**Important**: The application automatically formats the model string for CrewAI (e.g., `groq/llama-3.3-70b-versatile`).
 
 ## 🔧 GitHub Actions Setup
 
